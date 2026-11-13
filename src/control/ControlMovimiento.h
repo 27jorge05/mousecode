@@ -38,6 +38,8 @@ public:
     // IMU I2C
     #define IMU_SDA  25
     #define IMU_SCL  26
+    // Direccion identificada en la prueba del MPU conectado por el usuario.
+    static constexpr uint8_t IMU_DIRECCION = 0x69;
 
     // Parámetros del robot
     const float R_RUEDA  = 0.02205;
@@ -94,7 +96,7 @@ public:
     Perfil        perfil{V_MAX, A_MAX, V_MIN};
     Perfil        perfilGiro{W_MAX, ALFA_MAX, W_MIN};
     Mezclador     mezcla{BASE, R_RUEDA, RPM_MAX};
-    FusionAngular imu{IMU_SDA, IMU_SCL};
+    FusionAngular imu{IMU_SDA, IMU_SCL, IMU_DIRECCION};
 
     // Máquina de estados
     enum Modo { REPOSO, AVANZAR, GIRAR };

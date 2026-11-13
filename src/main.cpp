@@ -135,7 +135,7 @@ void imprimirAyuda()
 
     Serial.println("INICIAR");
     Serial.println("  Inicia el intento con el algoritmo seleccionado.");
-    Serial.println("  En modo sin motores solo muestra la primera accion.");
+    Serial.println("  Ejecuta avances y giros reales; cada accion se muestra por Serial.");
 
     Serial.println("ESTADO");
     Serial.println("  Muestra la etapa actual y el estado del recorrido.");
@@ -550,7 +550,7 @@ void setup()
 
     imprimirAyuda();
     imprimirMapa();
-    Serial.println(" INICIAR muestra la primera orden y detiene el intento.");
+    Serial.println("CONTROL REAL ACTIVADO. INICIAR ejecuta motores; ! detiene y bloquea.");
 
     
     etapaArranque = "INICIALIZANDO_CONTROL_IMU";

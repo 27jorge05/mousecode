@@ -1,4 +1,5 @@
 #include "ControlMovimiento.h"
+#include <math.h>
 
 ControlMovimiento::~ControlMovimiento() {}
 
@@ -66,8 +67,8 @@ void ControlMovimiento::iniciarAccion(const Accion &a, float s, float phi)
         perfilGiro.iniciar(Tplan);
         modo = GIRAR;
 
-        Serial.print("girar ");
-        Serial.print(a.valor);
+        Serial.print(a.valor >= 0 ? "girar izquierda " : "girar derecha ");
+        Serial.print(fabsf(a.valor));
         Serial.println(" grados");
     }
 }
@@ -91,12 +92,17 @@ bool ControlMovimiento::begin()
     enc2.iniciar(100);
 
     // IMU
-    Serial.println("FAB CONTROL: buscando MPU6050 (SDA 25, SCL 26)...");
+    Serial.println("FAB CONTROL: buscando MPU6050 (SDA 25, SCL 26, direccion 0x69)...");
     imuOk = imu.begin();
     if (imuOk)
     {
         Serial.println("MPU6050 good");
         imu.calibrar(500);
+        imuOk = imu.estaOk();
+        if (!imuOk) {
+            Serial.println("ERROR: fallo la calibracion del MPU6050.");
+            fallo = true; stop(); return false;
+        }
         imu.reiniciar(0.0f);
     }
     else
@@ -124,40 +130,16 @@ void ControlMovimiento::stop()
 
 bool ControlMovimiento::ejecutar(char tipo, float valor)
 {
-    // PRUEBA SIN MOTORES: mostrar la orden, sin confirmar un movimiento inexistente.
-    stop();
-    Serial.print("HARIA: ");
-    if (tipo == 'A')
-    {
-        Serial.print("avanzar ");
-        Serial.print(valor);
-        Serial.print(" casilla(s), ");
-        Serial.print(valor * CELDA * 100.0f);
-        Serial.println(" cm");
+    if (fallo || !imuOk || !imu.estaOk()) {
+        Serial.println("ERROR: movimiento rechazado; control o IMU no disponibles.");
+        fallo = true; stop(); return false;
     }
-    else if (tipo == 'G')
-    {
-        if (fabsf(valor) == 180.0f)
-            Serial.print("media vuelta, ");
-        else
-            Serial.print(valor > 0 ? "girar izquierda, " : "girar derecha, ");
-        Serial.print(fabsf(valor));
-        Serial.println(" grados");
+    if ((tipo != 'A' && tipo != 'G') || !isfinite(valor) ||
+        (tipo == 'A' && valor <= 0)) {
+        Serial.println("ERROR: accion de movimiento invalida.");
+        fallo = true; stop(); return false;
     }
-    else
-    {
-        Serial.println("orden desconocida");
-    }
-    Serial.println("NO EJECUTADO. Se detiene el intento sin cambiar la posicion del algoritmo.");
-    fallo = true;
-    return false;
-
-    // CONTROL REAL COMENTADO PARA ESTA PRUEBA.
-    //    Conservar este bloque: contiene el movimiento original con motores.
-
-    if (fallo || !imuOk)
-        return false;
-
+    // Control real: iniciarAccion imprime la distancia o el giro que ejecutara.
     // Medición inicial de odometría y orientación
     float s = odo.s();
     float phi = imu.getPhiFusion();
@@ -206,6 +188,11 @@ bool ControlMovimiento::ejecutar(char tipo, float valor)
         s = odo.s();
         float phi_enc = odo.phi();
         imu.actualizar(dt, phi_enc);
+        imuOk = imu.estaOk();
+        if (!imuOk) {
+            Serial.println("ERROR: se perdio la lectura de la IMU durante el movimiento.");
+            fallo = true; stop(); return false;
+        }
         phi = imu.getPhiFusion();
         float phi_imu = imu.getPhiIMU();
 
@@ -318,6 +305,11 @@ bool ControlMovimiento::ejecutar(char tipo, float valor)
                 Serial.println(" ms");
 
                 stop();
+                if (!asentado) {
+                    Serial.println("ERROR: movimiento sin asentamiento; no se confirma la posicion.");
+                    fallo = true;
+                    return false;
+                }
                 return true;
             }
         }
